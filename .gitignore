@@ -1,0 +1,21 @@
+# 依赖与包管理缓存
+node_modules/
+.pnpm-store/
+
+# 构建产物
+dist/
+*.tsbuildinfo
+
+# 日志
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# 测试产物
+coverage/
+
+# 编辑器与系统文件
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
