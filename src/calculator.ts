@@ -33,9 +33,13 @@ export const initialProjection: ProjectionValues = {
 }
 
 const dateAtNoon = (value: string) => new Date(`${value}T12:00:00`)
+const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate()
+// 按自然月递增，并把"日"钳制在目标月的最后一天；否则 31 号遇短月会溢出到下个月。
 const addMonths = (date: Date, months: number) => {
+  const year = date.getFullYear()
+  const month = date.getMonth() + months
   const copy = new Date(date)
-  copy.setMonth(copy.getMonth() + months)
+  copy.setFullYear(year, month, Math.min(date.getDate(), daysInMonth(year, month)))
   return copy
 }
 const monthDiff = (later: Date, earlier: Date) =>
@@ -55,8 +59,7 @@ export function statutoryRetirementDate(birthDate: string, category: RetirementC
     female55: { baseAge: 55, start: '1970-01-01', interval: 4, cap: 36 },
     female50: { baseAge: 50, start: '1975-01-01', interval: 2, cap: 60 },
   }[category]
-  const baseline = new Date(birth)
-  baseline.setFullYear(baseline.getFullYear() + config.baseAge)
+  const baseline = addMonths(birth, config.baseAge * 12)
   const sinceStart = monthDiff(birth, dateAtNoon(config.start))
   const delayedMonths = sinceStart < 0 ? 0 : Math.min(Math.floor(sinceStart / config.interval) + 1, config.cap)
   return addMonths(baseline, delayedMonths)
@@ -136,5 +139,9 @@ export function project(form: FormValues, input: ProjectionValues) {
   let futureBalance = num(form.accountBalance)
   for (let index = 0; index < Math.ceil(years); index += 1) futureBalance = futureBalance * (1 + interest) + annualBase * accountRate
   const futureForm = { ...form, accountBalance: String(futureBalance), pensionBase: String(num(form.pensionBase) * (1 + baseGrowth) ** years), contributionMonths: String(num(form.contributionMonths) + months) }
-  return calculate(futureForm)
+  const result = calculate(futureForm)
+  // 空着不等于跳过：Number('') === 0，不提示的话用户会拿到"退休前不再缴费"的偏低结果。
+  return input.annualBase.trim()
+    ? result
+    : { ...result, notices: [...result.notices, '未填写预计年缴费基数，已按「退休前不再缴费」估算账户余额，结果会明显偏低。'] }
 }
